@@ -8,6 +8,8 @@ TagManager:
   - Ammo
   - Damage
   - Enemy
+  - EnemyBullet
+  - PlayerBullet
   layers:
   - Default
   - TransparentFX
