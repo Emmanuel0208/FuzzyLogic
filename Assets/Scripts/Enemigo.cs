@@ -6,41 +6,41 @@ using System.Collections;
 
 public class Enemigo : MonoBehaviour
 {
-    //requisitos del enemigo
-    public Transform player;
-    public GameObject hospital;
-    public GameObject ammoBox;
-    public GameObject bulletEnemy;
-    public Transform bulletSpawn;
-    public TMP_Text enemyLife;
-    public GameObject losingPanel;
+    //Requisitos del enemigo
+    public Transform player;            
+    public GameObject hospital;         
+    public GameObject ammoBox;         
+    public GameObject bulletEnemy;      
+    public Transform bulletSpawn;       
+    public TMP_Text enemyLife;          
+    public GameObject losingPanel;      
 
+    //Variables del enemigo
+    public NavMeshAgent agent;          //Componente NavMeshAgent para la navegación
+    public int maxAmmo = 8;             
+    public int currentAmmo;             
+    public float shootCooldown = 1.5f;  
+    public float shootRange = 8f;      
+    public float bulletSpeed = 10f;     
+    public int maxHealth = 100;         
+    public int currentHealth;          
+    public bool canShoot = true;       
+    public bool isReloading = false;    
+    public bool isHealing = false;      
+    public float distanceDifferential = 5f; 
 
-    //variables
-    public NavMeshAgent agent;
-    public int maxAmmo = 8;
-    public int currentAmmo;
-    public float shootCooldown = 1.5f;
-    public float shootRange = 8f;
-    public float bulletSpeed = 10f;
-    public int maxHealth = 100;
-    public int currentHealth;
-    public bool canShoot = true;
-    public bool isReloading = false;
-    public bool isHealing = false;
-    public float distanceDifferential = 5f;
-    //fuzzy
-    private float fuzzyPlayerHealth;
-    private float fuzzyAmmo;
-    private float fuzzyDistancePlayer;
-    private float fuzzyDistanceAmmo;
-    private float fuzzyDistanceHealth;
+    //Variables difusas
+    private float fuzzyPlayerHealth;    //vida fuzzy
+    private float fuzzyAmmo;            //Munición fuzzy
+    private float fuzzyDistancePlayer;  //Distancia al jugador fuzzy
+    private float fuzzyDistanceAmmo;    //Distancia a la munición fuzzy
+    private float fuzzyDistanceHealth;  //Distancia a la estación de salud fuzzy
 
     private void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        currentAmmo = maxAmmo;
-        currentHealth = maxHealth;
+        agent = GetComponent<NavMeshAgent>(); // Obtener el componente NavMeshAgent
+        currentAmmo = maxAmmo;                // Inicializar munición
+        currentHealth = maxHealth;            // Inicializar vida
     }
 
     private void Update()
@@ -48,15 +48,16 @@ public class Enemigo : MonoBehaviour
         if (player == null)
             return;
 
-        Fuzzify();
-        enemyLife.text = "Enemy Life: " + fuzzyPlayerHealth.ToString();
-        Elections();
+        Fuzzify(); //Convertir a fuzzy
+        enemyLife.text = "Enemy Life: " + fuzzyPlayerHealth.ToString(); //Actualizar vida del enemigo
+        Elections(); //elecciones del enemy
         if (!isReloading && !isHealing && currentAmmo > 0 && Vector3.Distance(transform.position, player.position) <= shootRange)
         {
-            Shoot();
+            Shoot(); // Disparar si es posible
         }
     }
 
+    // Convertir valores a términos difusos
     private void Fuzzify()
     {
         fuzzyPlayerHealth = (currentHealth * 100) / maxHealth;
@@ -66,13 +67,14 @@ public class Enemigo : MonoBehaviour
         fuzzyDistanceHealth = Vector3.Distance(transform.position, hospital.transform.position);
     }
 
+    //decisiones
     private void Elections()
     {
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         bool isNearAmmoStation = fuzzyDistanceAmmo <= 15f;
         bool isNearHealthStation = fuzzyDistanceHealth <= 15f;
 
-        // Mantener distancia con el jugador
+        //Mantener distancia con el jugador
         if (distanceToPlayer > distanceDifferential)
         {
             agent.SetDestination(player.position);
@@ -82,8 +84,8 @@ public class Enemigo : MonoBehaviour
             agent.SetDestination(transform.position);
         }
 
-        // Buscar recargar solo si la munición es baja y no está cerca de la estación de munición
-        if (currentAmmo <= 2 && !isNearAmmoStation && distanceToPlayer > distanceDifferential && fuzzyDistanceAmmo > 20f)
+        //Buscar recargar si la munición es baja y no está cerca de la estación de munición
+        if (currentAmmo <= 2 && !isNearAmmoStation && distanceToPlayer > distanceDifferential)
         {
             SerchAmmo();
             return;
@@ -120,7 +122,7 @@ public class Enemigo : MonoBehaviour
         }
     }
 
-
+    // Escapar del jugador
     private void Scape()
     {
         Vector3 scapeDirection = transform.position - player.position;
@@ -130,6 +132,7 @@ public class Enemigo : MonoBehaviour
         agent.SetDestination(scapeZone);
     }
 
+    // Disparar al jugador
     private void Shoot()
     {
         if (canShoot && currentAmmo > 0)
@@ -152,6 +155,7 @@ public class Enemigo : MonoBehaviour
         }
     }
 
+    // Moverse a la estación de salud
     private void AidKit()
     {
         agent.SetDestination(hospital.transform.position);
@@ -161,21 +165,25 @@ public class Enemigo : MonoBehaviour
         }
     }
 
+    // Moverse a la estación de munición
     private void SerchAmmo()
     {
         agent.SetDestination(ammoBox.transform.position);
     }
 
+    // Recargar munición
     private void RestockAmmo()
     {
         currentAmmo = maxAmmo;
     }
 
+    // Curar al enemigo
     public void Heal()
     {
         currentHealth = maxHealth;
     }
 
+    // Cooldown entre disparos
     private IEnumerator ShootCooldown()
     {
         canShoot = false;
@@ -183,6 +191,7 @@ public class Enemigo : MonoBehaviour
         canShoot = true;
     }
 
+    // Recargar munición con un retraso
     private IEnumerator Reload()
     {
         isReloading = true;
@@ -196,8 +205,7 @@ public class Enemigo : MonoBehaviour
         agent.isStopped = false;
     }
 
-    
-
+    // Método para manejar la muerte del enemigo
     private void Die()
     {
         Time.timeScale = 0f;
@@ -205,11 +213,13 @@ public class Enemigo : MonoBehaviour
         Debug.Log("Game Over");
     }
 
+    // Reiniciar el juego
     public void Restart()
     {
         StartCoroutine(RestartCoroutine());
     }
 
+    // Corutina para reiniciar el juego
     private IEnumerator RestartCoroutine()
     {
         yield return new WaitForSecondsRealtime(0.1f);
@@ -217,6 +227,7 @@ public class Enemigo : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
+    // Manejar colisiones con otros objetos
     private void OnTriggerEnter(Collider other)
     {
         if (other.gameObject == ammoBox && !isReloading)
@@ -231,6 +242,7 @@ public class Enemigo : MonoBehaviour
         }
     }
 
+    // Tomar daño
     public void TakeDamage(int damage)
     {
         currentHealth -= damage;
@@ -240,6 +252,7 @@ public class Enemigo : MonoBehaviour
         }
     }
 
+    // Curar al enemigo con el tiempo
     private IEnumerator HealOverTime()
     {
         isHealing = true;
@@ -252,11 +265,13 @@ public class Enemigo : MonoBehaviour
         isHealing = false;
     }
 
+    // Cargar el menú inicial
     public void InitialMenu()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex - 1);
     }
 
+    // Salir del juego
     public void Quit()
     {
         Application.Quit();
