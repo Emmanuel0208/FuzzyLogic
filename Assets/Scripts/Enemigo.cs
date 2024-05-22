@@ -6,120 +6,115 @@ using System.Collections;
 
 public class Enemigo : MonoBehaviour
 {
-    //Requisitos del enemigo
-    public Transform player;            
-    public GameObject hospital;         
-    public GameObject ammoBox;         
-    public GameObject bulletEnemy;      
-    public Transform bulletSpawn;       
-    public TMP_Text enemyLife;          
-    public GameObject losingPanel;      
+    // Requisitos del enemigo
+    public Transform player; 
+    public GameObject hospital; 
+    public GameObject ammoBox; 
+    public GameObject bulletEnemy; 
+    public Transform bulletSpawn; 
+    public TMP_Text enemyLife; 
+    public GameObject losingPanel; 
 
-    //Variables del enemigo
-    public NavMeshAgent agent;          //Componente NavMeshAgent para la navegación
-    public int maxAmmo = 8;             
-    public int currentAmmo;             
-    public float shootCooldown = 1.5f;  
-    public float shootRange = 8f;      
-    public float bulletSpeed = 10f;     
-    public int maxHealth = 100;         
-    public int currentHealth;          
-    public bool canShoot = true;       
-    public bool isReloading = false;    
-    public bool isHealing = false;      
-    public float distanceDifferential = 5f; 
+    // Variables del enemigo
+    public NavMeshAgent agent; // Componente NavMeshAgent para el movimiento
+    public int maxAmmo = 8; // Máxima cantidad de munición
+    public int currentAmmo; // Cantidad actual de munición
+    public float shootCooldown = 1.5f; // Tiempo entre cada disparo
+    public float shootRange = 8f; // Rango de disparo
+    public float bulletSpeed = 10f; // Velocidad de la bala
+    public int maxHealth = 100; 
+    public int currentHealth;
+    public bool canShoot = true; 
+    public bool isReloading = false; 
+    public bool isHealing = false; 
+    public float closeRange = 4f; // Rango cercano para disparar al jugador
+    public float safeDistance = 15f; // Distancia segura para mantenerse del jugador
+    public float movementInterval = 4f; // Intervalo de tiempo para actualizar el movimiento
 
-    //Variables difusas
-    private float fuzzyPlayerHealth;    //vida fuzzy
-    private float fuzzyAmmo;            //Munición fuzzy
-    private float fuzzyDistancePlayer;  //Distancia al jugador fuzzy
-    private float fuzzyDistanceAmmo;    //Distancia a la munición fuzzy
-    private float fuzzyDistanceHealth;  //Distancia a la estación de salud fuzzy
+    // Variables fuzzy para la toma de decisiones
+    private float fuzzyPlayerHealth; // Variable fuzzy para la salud del jugador
+    private float fuzzyAmmo; // Variable fuzzy para la munición
+    private float fuzzyDistancePlayer; // Variable fuzzy para la distancia al jugador
+    private float fuzzyDistanceAmmo; // Variable fuzzy para la distancia a la caja de munición
+    private float fuzzyDistanceHealth; // Variable fuzzy para la distancia al hospital
 
+    // Inicialización
     private void Start()
     {
-        agent = GetComponent<NavMeshAgent>(); // Obtener el componente NavMeshAgent
-        currentAmmo = maxAmmo;                // Inicializar munición
-        currentHealth = maxHealth;            // Inicializar vida
+        agent = GetComponent<NavMeshAgent>(); // Obtener componente NavMeshAgent
+        currentAmmo = maxAmmo; // Establecer la munición inicial
+        currentHealth = maxHealth; // Establecer la vida inicial
+        StartCoroutine(UpdateMovement()); // Iniciar la rutina para actualizar el movimiento
     }
 
+    // Actualización
     private void Update()
     {
         if (player == null)
             return;
 
-        Fuzzify(); //Convertir a fuzzy
-        enemyLife.text = "Enemy Life: " + fuzzyPlayerHealth.ToString(); //Actualizar vida del enemigo
-        Elections(); //elecciones del enemy
-        if (!isReloading && !isHealing && currentAmmo > 0 && Vector3.Distance(transform.position, player.position) <= shootRange)
-        {
-            Shoot(); // Disparar si es posible
-        }
+        Fuzzify(); // Calcular variables fuzzy
+        enemyLife.text = "Enemy Life: " + fuzzyPlayerHealth.ToString(); // Actualizar el texto de la vida del enemigo
+        Elections(); // Realizar acciones en función de las variables fuzzy
     }
 
-    // Convertir valores a términos difusos
+    // Calcular variables fuzzy
     private void Fuzzify()
     {
-        fuzzyPlayerHealth = (currentHealth * 100) / maxHealth;
-        fuzzyAmmo = (currentAmmo * 100) / maxAmmo;
-        fuzzyDistancePlayer = Vector3.Distance(transform.position, player.position);
-        fuzzyDistanceAmmo = Vector3.Distance(transform.position, ammoBox.transform.position);
-        fuzzyDistanceHealth = Vector3.Distance(transform.position, hospital.transform.position);
+        fuzzyPlayerHealth = (currentHealth * 100) / maxHealth; // Calcular salud del jugador
+        fuzzyAmmo = (currentAmmo * 100) / maxAmmo; // Calcular cantidad de munición
+        fuzzyDistancePlayer = Vector3.Distance(transform.position, player.position); // Calcular distancia al jugador
+        fuzzyDistanceAmmo = Vector3.Distance(transform.position, ammoBox.transform.position); // Calcular distancia a la caja de munición
+        fuzzyDistanceHealth = Vector3.Distance(transform.position, hospital.transform.position); // Calcular distancia al hospital
     }
 
-    //decisiones
+    // Tomar decisiones en función de las variables fuzzy
     private void Elections()
     {
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        bool isNearAmmoStation = fuzzyDistanceAmmo <= 15f;
-        bool isNearHealthStation = fuzzyDistanceHealth <= 15f;
-
-        //Mantener distancia con el jugador
-        if (distanceToPlayer > distanceDifferential)
+        // Escapar cuando la vida y la munición estén al máximo
+        if (fuzzyPlayerHealth == 100 && fuzzyAmmo == 100)
         {
-            agent.SetDestination(player.position);
-        }
-        else
-        {
-            agent.SetDestination(transform.position);
+            Scape();
+            return;
         }
 
-        //Buscar recargar si la munición es baja y no está cerca de la estación de munición
-        if (currentAmmo <= 2 && !isNearAmmoStation && distanceToPlayer > distanceDifferential)
+        // Disparar si el jugador está en rango muy cercano
+        if (fuzzyDistancePlayer <= closeRange && currentAmmo > 0)
+        {
+            Shoot();
+            return;
+        }
+
+        // Buscar curarse si la vida es muy baja
+        if (fuzzyPlayerHealth <= 30)
+        {
+            AidKit();
+            return;
+        }
+
+        // Buscar recargar si la munición es baja
+        if (fuzzyAmmo <= 25)
         {
             SerchAmmo();
             return;
         }
 
-        // Buscar curarse solo si la salud es baja y no está cerca de la estación de salud
-        if (currentHealth <= 30 && !isNearHealthStation)
+        // Priorizar curarse si la vida es moderadamente baja y el hospital está cerca
+        if (fuzzyPlayerHealth <= 50 && fuzzyDistanceHealth <= safeDistance)
         {
             AidKit();
-            Scape();
             return;
         }
 
-        // Buscar curarse si está cerca de la estación de salud, solo si no se cumple la condición anterior
-        if (currentHealth <= 50 && isNearHealthStation && distanceToPlayer > distanceDifferential && fuzzyDistanceHealth > 20f)
+        // Priorizar buscar munición si la munición es moderadamente baja y la caja de munición está cerca
+        if (fuzzyAmmo <= 50 && fuzzyDistanceAmmo <= safeDistance)
         {
-            AidKit();
-            Scape();
+            SerchAmmo();
             return;
         }
 
-        // Alejarse lo máximo posible del jugador para buscar munición solo si no se cumple ninguna de las condiciones anteriores
-        if (currentAmmo <= maxAmmo / 2 && !isNearHealthStation && distanceToPlayer > distanceDifferential)
-        {
-            Scape();
-            return;
-        }
-
-        // Alejarse lo máximo posible del jugador si la munición y la vida están al máximo, solo si no se cumple ninguna de las condiciones anteriores
-        if (currentAmmo == maxAmmo && currentHealth == maxHealth && distanceToPlayer > distanceDifferential)
-        {
-            Scape();
-            return;
-        }
+        // Mantener distancia con el jugador
+        MaintainDistance();
     }
 
     // Escapar del jugador
@@ -128,7 +123,7 @@ public class Enemigo : MonoBehaviour
         Vector3 scapeDirection = transform.position - player.position;
         scapeDirection.y = 0;
         scapeDirection.Normalize();
-        Vector3 scapeZone = transform.position - player.position;
+        Vector3 scapeZone = transform.position + scapeDirection * 10f; // Ajustar la distancia de escape si es necesario
         agent.SetDestination(scapeZone);
     }
 
@@ -137,143 +132,169 @@ public class Enemigo : MonoBehaviour
     {
         if (canShoot && currentAmmo > 0)
         {
-            GameObject bullet = Instantiate(bulletEnemy, bulletSpawn.position, Quaternion.identity);
-
-            Vector3 direction = (player.position - bulletSpawn.position).normalized;
-
-            Rigidbody bulletRigidbody = bullet.GetComponent<Rigidbody>();
+            GameObject bullet = Instantiate(bulletEnemy, bulletSpawn.position, Quaternion.identity); // Instanciar la bala del enemigo
+            Vector3 direction = (player.position - bulletSpawn.position).normalized; // Calcular dirección del disparo
+            Rigidbody bulletRigidbody = bullet.GetComponent<Rigidbody>(); // Obtener componente Rigidbody de la bala
             if (bulletRigidbody != null)
             {
-                bulletRigidbody.velocity = direction * bulletSpeed;
+                bulletRigidbody.velocity = direction * bulletSpeed; // Establecer velocidad de la bala
             }
-
-            Destroy(bullet, 3f);
-
-            currentAmmo--;
-
-            StartCoroutine(ShootCooldown());
+            Destroy(bullet, 3f); // Destruir la bala después de un tiempo
+            currentAmmo--; // Reducir la munición
+            StartCoroutine(ShootCooldown()); // Iniciar el cooldown de disparo
         }
     }
 
-    // Moverse a la estación de salud
+    // Buscar curación en el hospital
     private void AidKit()
     {
-        agent.SetDestination(hospital.transform.position);
-        if (Vector3.Distance(transform.position, hospital.transform.position) < 1f)
+        agent.SetDestination(hospital.transform.position); // Establecer destino al hospital
+        if (Vector3.Distance(transform.position, hospital.transform.position) < 1f) // Si está cerca del hospital
         {
-            StartCoroutine(HealOverTime());
+            StartCoroutine(HealOverTime()); // Comenzar a curarse con el tiempo
         }
     }
 
-    // Moverse a la estación de munición
+    // Buscar munición en la caja de munición
     private void SerchAmmo()
     {
-        agent.SetDestination(ammoBox.transform.position);
+        agent.SetDestination(ammoBox.transform.position); // Establecer destino a la caja de munición
+
+
+    }
+
+    // Mantener una distancia segura con el jugador
+    private void MaintainDistance()
+    {
+        if (fuzzyDistancePlayer < safeDistance)
+        {
+            Scape(); // Si está muy cerca, escapar
+        }
+        else if (fuzzyDistancePlayer > safeDistance * 2)
+        {
+            agent.SetDestination(player.position); // Si está muy lejos, acercarse al jugador
+        }
     }
 
     // Recargar munición
     private void RestockAmmo()
     {
-        currentAmmo = maxAmmo;
+        currentAmmo = maxAmmo; // Restablecer la munición al máximo
     }
 
-    // Curar al enemigo
+    // Curar completamente al enemigo
     public void Heal()
     {
-        currentHealth = maxHealth;
+        currentHealth = maxHealth; // Establecer la vida al máximo
     }
 
-    // Cooldown entre disparos
+    // Rutina para el cooldown de disparo
     private IEnumerator ShootCooldown()
     {
-        canShoot = false;
-        yield return new WaitForSeconds(shootCooldown);
-        canShoot = true;
+        canShoot = false; // No puede disparar durante el cooldown
+        yield return new WaitForSeconds(shootCooldown); // Esperar el tiempo de cooldown
+        canShoot = true; // Habilitar disparo nuevamente
     }
 
-    // Recargar munición con un retraso
+    // Rutina para la recarga de munición
     private IEnumerator Reload()
     {
-        isReloading = true;
-
-        yield return new WaitForSeconds(shootCooldown);
-
-        RestockAmmo();
-
-        isReloading = false;
-
-        agent.isStopped = false;
+        isReloading = true; // Indicar que está recargando
+        yield return new WaitForSeconds(shootCooldown); // Esperar tiempo de recarga
+        RestockAmmo(); // Recargar munición
+        isReloading = false; // Indicar que ha terminado de recargar
+        agent.isStopped = false; // Reactivar movimiento
     }
 
-    // Método para manejar la muerte del enemigo
+    // Manejar la muerte del enemigo
     private void Die()
     {
-        Time.timeScale = 0f;
-        losingPanel.SetActive(true);
-        Debug.Log("Game Over");
+        Time.timeScale = 0f; // Pausar el tiempo
+        losingPanel.SetActive(true); // Activar panel de derrota
+        Debug.Log("Game Over"); // Imprimir en consola
     }
 
     // Reiniciar el juego
     public void Restart()
     {
-        StartCoroutine(RestartCoroutine());
+        StartCoroutine(RestartCoroutine()); // Iniciar la rutina de reinicio
     }
 
-    // Corutina para reiniciar el juego
+    // Rutina para reiniciar el juego
     private IEnumerator RestartCoroutine()
     {
-        yield return new WaitForSecondsRealtime(0.1f);
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        yield return new WaitForSecondsRealtime(0.1f); // Esperar un pequeño tiempo
+        Time.timeScale = 1f; // Reanudar el tiempo
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Cargar la escena actual
     }
 
-    // Manejar colisiones con otros objetos
+    // Manejar colisiones del enemigo
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject == ammoBox && !isReloading)
+        if (other.gameObject == ammoBox && !isReloading) // Si colisiona con la caja de munición y no está recargando
         {
-            agent.isStopped = true;
-            StartCoroutine(Reload());
+            agent.isStopped = true; // Detener movimiento
+            StartCoroutine(Reload()); // Iniciar recarga
         }
-        else if (other.CompareTag("PlayerBullet"))
+        else if (other.CompareTag("PlayerBullet")) // Si colisiona con una bala del jugador
         {
-            TakeDamage(20);
-            Destroy(other.gameObject);
+            TakeDamage(20); // Recibir daño
+            Destroy(other.gameObject); // Destruir la bala
         }
     }
 
-    // Tomar daño
+    // Recibir daño
     public void TakeDamage(int damage)
     {
-        currentHealth -= damage;
-        if (currentHealth <= 0)
+        currentHealth -= damage; // Reducir la vida
+        if (currentHealth <= 0) // Si la vida es igual o menor a cero
         {
-            Die();
+            Die(); // Morir
         }
     }
 
-    // Curar al enemigo con el tiempo
+    // Curarse gradualmente con el tiempo
     private IEnumerator HealOverTime()
     {
-        isHealing = true;
-        while (currentHealth < maxHealth)
+        isHealing = true; // Indicar que está siendo curado
+        while (currentHealth < maxHealth) // Mientras la vida no esté al máximo
         {
-            yield return new WaitForSeconds(1f);
-            currentHealth += 20;
-            currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+            yield return new WaitForSeconds(1f); // Esperar un segundo
+            currentHealth += 20; // Incrementar la vida
+            currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth); // Limitar la vida al máximo
         }
-        isHealing = false;
+        isHealing = false; // Indicar que ha terminado de curarse
     }
 
-    // Cargar el menú inicial
+    // Actualizar el movimiento del enemigo
+    private IEnumerator UpdateMovement()
+    {
+        while (true) // Bucle infinito
+        {
+            if (!isHealing && !isReloading) // Si no está siendo curado ni recargando
+            {
+                if (fuzzyDistancePlayer >= safeDistance) // Si la distancia al jugador es mayor o igual a la distancia segura
+                {
+                    Vector3 randomDirection = Random.insideUnitSphere * safeDistance; // Obtener una dirección aleatoria dentro de un radio seguro
+                    randomDirection += transform.position; // Ajustar la dirección respecto a la posición actual
+                    NavMeshHit navHit; // Información sobre el punto de navegación alcanzado
+                    NavMesh.SamplePosition(randomDirection, out navHit, safeDistance, -1); // Obtener un punto de navegación válido
+                    agent.SetDestination(navHit.position); // Establecer destino hacia el punto de navegación
+                }
+            }
+            yield return new WaitForSeconds(movementInterval); // Esperar un intervalo antes de volver a calcular el movimiento
+        }
+    }
+
+    // Cargar menú inicial
     public void InitialMenu()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex - 1);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex - 1); // Cargar la escena del menú inicial
     }
 
     // Salir del juego
     public void Quit()
     {
-        Application.Quit();
+        Application.Quit(); // Salir de la aplicación
     }
 }
