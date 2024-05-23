@@ -16,40 +16,41 @@ public class Enemigo : MonoBehaviour
     public GameObject losingPanel; 
 
     // Variables del enemigo
-    public NavMeshAgent agent; // Componente NavMeshAgent para el movimiento
-    public int maxAmmo = 8; // Máxima cantidad de munición
-    public int currentAmmo; // Cantidad actual de munición
-    public float shootCooldown = 1.5f; // Tiempo entre cada disparo
-    public float shootRange = 8f; // Rango de disparo
-    public float bulletSpeed = 10f; // Velocidad de la bala
+    public NavMeshAgent agent;
+    public int maxAmmo = 8; 
+    public int currentAmmo; 
+    public float shootCooldown = 1.5f; 
+    public float shootRange = 8f; 
+    public float bulletSpeed = 10f; 
     public int maxHealth = 100; 
     public int currentHealth;
     public bool canShoot = true; 
     public bool isReloading = false; 
     public bool isHealing = false; 
-    public float closeRange = 4f; // Rango cercano para disparar al jugador
-    public float safeDistance = 15f; // Distancia segura para mantenerse del jugador
-    public float movementInterval = 4f; // Intervalo de tiempo para actualizar el movimiento
+    public float closeRange = 4f; 
+    public float safeDistance = 15f; 
+    public float movementInterval = 4f; 
 
     // Variables fuzzy para la toma de decisiones
-    private float fuzzyPlayerHealth; // Variable fuzzy para la salud del jugador
-    private float fuzzyAmmo; // Variable fuzzy para la munición
-    private float fuzzyDistancePlayer; // Variable fuzzy para la distancia al jugador
-    private float fuzzyDistanceAmmo; // Variable fuzzy para la distancia a la caja de munición
-    private float fuzzyDistanceHealth; // Variable fuzzy para la distancia al hospital
+    private float fuzzyPlayerHealth; 
+    private float fuzzyAmmo; 
+    private float fuzzyDistancePlayer; 
+    private float fuzzyDistanceAmmo; 
+    private float fuzzyDistanceHealth; 
 
     // Inicialización
     private void Start()
     {
-        agent = GetComponent<NavMeshAgent>(); // Obtener componente NavMeshAgent
-        currentAmmo = maxAmmo; // Establecer la munición inicial
-        currentHealth = maxHealth; // Establecer la vida inicial
-        StartCoroutine(UpdateMovement()); // Iniciar la rutina para actualizar el movimiento
+        agent = GetComponent<NavMeshAgent>(); 
+        currentAmmo = maxAmmo; 
+        currentHealth = maxHealth; 
+        StartCoroutine(UpdateMovement()); 
     }
 
     // Actualización
     private void Update()
     {
+        // verificar si existe el player
         if (player == null)
             return;
 
@@ -86,27 +87,27 @@ public class Enemigo : MonoBehaviour
         }
 
         // Buscar curarse si la vida es muy baja
-        if (fuzzyPlayerHealth <= 30)
+        if (fuzzyPlayerHealth <= 50)
         {
             AidKit();
             return;
         }
 
         // Buscar recargar si la munición es baja
-        if (fuzzyAmmo <= 25)
+        if (fuzzyAmmo <= 20)
         {
             SerchAmmo();
             return;
         }
 
-        // Priorizar curarse si la vida es moderadamente baja y el hospital está cerca
-        if (fuzzyPlayerHealth <= 50 && fuzzyDistanceHealth <= safeDistance)
+        // Priorizar curarse si la vida es algo baja y el hospital está cerca
+        if (fuzzyPlayerHealth <= 70 && fuzzyDistanceHealth <= safeDistance)
         {
             AidKit();
             return;
         }
 
-        // Priorizar buscar munición si la munición es moderadamente baja y la caja de munición está cerca
+        // Priorizar la munición si la munición es algo baja y la caja de munición está cerca
         if (fuzzyAmmo <= 50 && fuzzyDistanceAmmo <= safeDistance)
         {
             SerchAmmo();
@@ -145,13 +146,13 @@ public class Enemigo : MonoBehaviour
         }
     }
 
-    // Buscar curación en el hospital
+    // Buscar el hospital
     private void AidKit()
     {
         agent.SetDestination(hospital.transform.position); // Establecer destino al hospital
         if (Vector3.Distance(transform.position, hospital.transform.position) < 1f) // Si está cerca del hospital
         {
-            StartCoroutine(HealOverTime()); // Comenzar a curarse con el tiempo
+            StartCoroutine(HealOverTime()); // se cura con el tiempo
         }
     }
 
@@ -170,7 +171,7 @@ public class Enemigo : MonoBehaviour
         {
             Scape(); // Si está muy cerca, escapar
         }
-        else if (fuzzyDistancePlayer > safeDistance * 2)
+        else if (fuzzyDistancePlayer > safeDistance * 1.5)
         {
             agent.SetDestination(player.position); // Si está muy lejos, acercarse al jugador
         }
@@ -182,7 +183,7 @@ public class Enemigo : MonoBehaviour
         currentAmmo = maxAmmo; // Restablecer la munición al máximo
     }
 
-    // Curar completamente al enemigo
+    // Curar  al enemigo
     public void Heal()
     {
         currentHealth = maxHealth; // Establecer la vida al máximo
@@ -191,27 +192,27 @@ public class Enemigo : MonoBehaviour
     // Rutina para el cooldown de disparo
     private IEnumerator ShootCooldown()
     {
-        canShoot = false; // No puede disparar durante el cooldown
+        canShoot = false; 
         yield return new WaitForSeconds(shootCooldown); // Esperar el tiempo de cooldown
-        canShoot = true; // Habilitar disparo nuevamente
+        canShoot = true; 
     }
 
     // Rutina para la recarga de munición
     private IEnumerator Reload()
     {
-        isReloading = true; // Indicar que está recargando
-        yield return new WaitForSeconds(shootCooldown); // Esperar tiempo de recarga
+        isReloading = true; //está recargando
+        yield return new WaitForSeconds(shootCooldown); // tiempo de recarga
         RestockAmmo(); // Recargar munición
-        isReloading = false; // Indicar que ha terminado de recargar
+        isReloading = false; 
         agent.isStopped = false; // Reactivar movimiento
     }
 
-    // Manejar la muerte del enemigo
+    //muerte del enemigo
     private void Die()
     {
-        Time.timeScale = 0f; // Pausar el tiempo
-        losingPanel.SetActive(true); // Activar panel de derrota
-        Debug.Log("Game Over"); // Imprimir en consola
+        Time.timeScale = 0f; //Pausar el tiempo
+        losingPanel.SetActive(true); //Activar panel de derrota
+        Debug.Log("Game Over"); //Imprimir en consola
     }
 
     // Reiniciar el juego
@@ -263,7 +264,7 @@ public class Enemigo : MonoBehaviour
             currentHealth += 20; // Incrementar la vida
             currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth); // Limitar la vida al máximo
         }
-        isHealing = false; // Indicar que ha terminado de curarse
+        isHealing = false; 
     }
 
     // Actualizar el movimiento del enemigo
